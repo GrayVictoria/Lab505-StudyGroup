@@ -1,6 +1,0 @@
-# LYL 2023/04/10
-# Feature Statistics Mixing Regularization for Generative Adversarial Networks
-## 原文地址： https://arxiv.org/abs/2112.04120
-## 代码地址：https://github.com/naver-ai/FSMR
-## 好的解读（可有可无）：https://zhuanlan.zhihu.com/p/485014219
-这篇文章是针对生成对抗网络的一个插件类型的改进，很适合做创新点。原文是针对不同风格的图像的生成做出的改进，目的是使不同风格图片输入后能生成一个中间项，某种意义上能够增加生成数据的多样性。他的做法是针对判别模块增加了一个不同数据的混合，降低了判别模块对不同风格数据的敏感度。原论文是针对图片的，我做了修改之后用在信号上效果很不错，原理和代码都很好理解。
