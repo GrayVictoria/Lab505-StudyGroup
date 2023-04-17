@@ -5,7 +5,7 @@ def args_parser():
     # path setting
     parser.add_argument('-root', type=str, default='./data/')
     parser.add_argument('-result_path', type=str, default='./results/')
-    parser.add_argument('-dataset', type=str, default='Berlin',
+    parser.add_argument('-dataset', type=str, default='HHK',
                         choices=['Berlin', 'Augsburg', 'HHK'])
 
     # learning setting
@@ -24,7 +24,7 @@ def args_parser():
 
 
     # dataset setting
-    parser.add_argument('--patch_size', type=int, default=11,
+    parser.add_argument('--patch_size', type=int, default=13,
                         help='samples for validation')
     parser.add_argument('--batch_size', type=int, default=100)
     parser.add_argument('--test_ratio', type=int, default=0.2,

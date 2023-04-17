@@ -73,22 +73,27 @@ def minmax_normalize(array):
     amax = np.max(array)
     return (array - amin) / (amax - amin)
 
-def data_aug(train_hsiCube, train_patches, train_labels):
+def data_aug(train_hsiCube, train_patches, train_dsmCube, train_labels):
     Xh = []
     Xl = []
+    Xd = []
     y = []
     for i in range(train_hsiCube.shape[0]):
         Xh.append(train_hsiCube[i])
         Xl.append(train_patches[i])
+        Xd.append(train_dsmCube[i])
 
         noise = np.random.normal(0.0, 0.02, size=train_hsiCube[0].shape)
         noise2 = np.random.normal(0.0, 0.02, size=train_patches[0].shape)
+        noise3 = np.random.normal(0.0, 0.02, size=train_dsmCube[0].shape)
         Xh.append(np.flip(train_hsiCube[i] + noise, axis=1))
         Xl.append(np.flip(train_patches[i] + noise2, axis=1))
+        Xd.append(np.flip(train_dsmCube[i] + noise3, axis=1))
 
         k = np.random.randint(4)
         Xh.append(np.rot90(train_hsiCube[i], k=k))
         Xl.append(np.rot90(train_patches[i], k=k))
+        Xd.append(np.rot90(train_dsmCube[i], k=k))
 
         y.append(train_labels[i])
         y.append(train_labels[i])
@@ -97,18 +102,21 @@ def data_aug(train_hsiCube, train_patches, train_labels):
     train_labels = np.asarray(y, dtype=np.int8)
     train_hsiCube = np.asarray(Xh, dtype=np.float32)
     train_patches = np.asarray(Xl, dtype=np.float32)
+    train_dsmCube = np.asarray(Xd, dtype=np.float32)
     train_hsiCube = torch.from_numpy(train_hsiCube.transpose(0, 3, 1, 2)).float()
     train_patches = torch.from_numpy(train_patches.transpose(0, 3, 1, 2)).float()
-    return train_hsiCube, train_patches, train_labels
+    train_dsmCube = torch.from_numpy(train_dsmCube.transpose(0, 3, 1, 2)).float()
+    return train_hsiCube, train_patches, train_dsmCube, train_labels
 
 class TensorDataset(torch.utils.data.Dataset):
-    def __init__(self, hsi, sar, labels):
+    def __init__(self, hsi, sar, dsm, labels):
         self.len = labels.shape[0]
         self.hsi = torch.FloatTensor(hsi)
         self.sar = torch.FloatTensor(sar)
+        self.dsm = torch.FloatTensor(dsm)
         self.labels = torch.LongTensor(labels - 1)
     def __getitem__(self, index):
-        return self.hsi[index], self.sar[index], self.labels[index]
+        return self.hsi[index], self.sar[index], self.dsm[index], self.labels[index]
     def __len__(self):
         return self.len
 
@@ -117,25 +125,31 @@ def build_datasets(root, dataset, patch_size, batch_size,test_ratio):
 
     data_hsi = scio.loadmat(root + dataset + '/data_hsi.mat')['data']
     data_sar = scio.loadmat(root + dataset + '/data_sar.mat')['data']
+    data_dsm = scio.loadmat(root + dataset + '/data_msi.mat')['data']
+    # data_dsm = data_dsm[:, :, None]
     data_traingt = scio.loadmat(root + dataset + '/mask_train.mat')['mask_train']
 
     data_hsi = minmax_normalize(data_hsi)
     data_sar = minmax_normalize(data_sar)
+    data_dsm = minmax_normalize(data_dsm)
+
     print(data_hsi.shape)
 
     # training / testing set for 2D-CNN
     train_hsiCube, train_labels ,_ = createImgCube(data_hsi, data_traingt, createPosWithoutZero(data_hsi, data_traingt), windowSize=patch_size)
     train_patches, _ ,_ = createImgCube(data_sar, data_traingt, createPosWithoutZero(data_sar, data_traingt), windowSize=patch_size)
+    train_dsmCube, _ ,_ = createImgCube(data_dsm, data_traingt, createPosWithoutZero(data_dsm, data_traingt), windowSize=patch_size)
 
-    train_hsiCube, train_patches, train_labels = data_aug(train_hsiCube, train_patches, train_labels)
+    train_hsiCube, train_patches, train_dsmCube, train_labels = data_aug(train_hsiCube, train_patches, train_dsmCube, train_labels)
     X_train, X_test, gt_train, gt_test = splitTrainTestSet(train_hsiCube, train_labels, test_ratio, randomState=128)
     X_train_2, X_test_2, _, _ = splitTrainTestSet(train_patches, train_labels, test_ratio, randomState=128)
+    X_train_3, X_test_3, _, _ = splitTrainTestSet(train_dsmCube, train_labels, test_ratio, randomState=128)
 
     print (X_train.shape)
     print (X_test.shape)
     print("Creating dataloader")
-    trainset = TensorDataset(X_train, X_train_2, gt_train)
-    testset = TensorDataset(X_test, X_test_2, gt_test)
+    trainset = TensorDataset(X_train, X_train_2, X_train_3, gt_train)
+    testset = TensorDataset(X_test, X_test_2, X_test_3, gt_test)
     train_loader = torch.utils.data.DataLoader(dataset= trainset, batch_size= batch_size, shuffle= True, num_workers = 0)
     test_loader = torch.utils.data.DataLoader(dataset= testset, batch_size= batch_size, shuffle= False, num_workers = 0)
 

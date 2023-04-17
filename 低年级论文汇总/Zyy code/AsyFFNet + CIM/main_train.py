@@ -39,12 +39,12 @@ def L1_penalty(var):
 def train(model, device, train_loader, optimizer, epoch, slim_params):
     model.train()
     total_loss = 0
-    for i, (inputs_1, inputs_2, labels) in enumerate(train_loader):
-        inputs_1, inputs_2 = inputs_1.to(device), inputs_2.to(device)
+    for i, (inputs_1, inputs_2, inputs_3, labels) in enumerate(train_loader):
+        inputs_1, inputs_2, inputs_3 = inputs_1.to(device), inputs_2.to(device), inputs_3.to(device)
         labels = labels.to(device)
 
         optimizer.zero_grad()
-        outputs, f1, f2, f3 = model(inputs_1, inputs_2, inputs_2)
+        outputs, f1, f2, f3 = model(inputs_1, inputs_2, inputs_3)
         #print(f1.shape)
         loss = calc_loss(outputs, labels, f1, f2, f3)
         L1_norm = sum([L1_penalty(m).cuda() for m in slim_params])
@@ -60,9 +60,9 @@ def train(model, device, train_loader, optimizer, epoch, slim_params):
 def test(model, device, test_loader):
     model.eval()
     count = 0
-    for inputs_1, inputs_2, labels in test_loader:
-        inputs_1, inputs_2 = inputs_1.to(device), inputs_2.to(device)
-        outputs, _, _, _ = model(inputs_1, inputs_2, inputs_2)
+    for inputs_1, inputs_2, inputs_3, labels in test_loader:
+        inputs_1, inputs_2, inputs_3 = inputs_1.to(device), inputs_2.to(device), inputs_3.to(device)
+        outputs, _, _, _ = model(inputs_1, inputs_2, inputs_3)
         outputs = np.argmax(outputs.detach().cpu().numpy(), axis=1)
         if count == 0:
             y_pred_test = outputs
@@ -91,15 +91,17 @@ def main():
     elif args.dataset == 'Augsburg':
         args.hsi_bands = 180
         args.sar_bands = 4
+        args.dsm_bands = 1
         args.num_class = 7
     elif args.dataset == 'HHK':
         args.hsi_bands = 166
+        args.msi_bands = 8
         args.sar_bands = 3
         args.num_class = 5
 
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    model = Net(args.hsi_bands,  args.sar_bands, args.hidden_size, args.patch_size, args.num_class).to(device)
+    model = Net(args.hsi_bands,  args.sar_bands, args.msi_bands, args.hidden_size, args.patch_size, args.num_class).to(device)
     optimizer = torch.optim.SGD(model.parameters(), lr=args.lr, momentum=0.9, weight_decay=0.0005)
     Net_params, slim_params = [], []
 
